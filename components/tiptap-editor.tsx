@@ -50,6 +50,7 @@ export function TipTapEditor({ content, onChange, onImageUpload }: TipTapEditorP
       }),
     ],
     content: content,
+    immediatelyRender: false, // ✅ FIX: Mencegah warning hydration mismatch di Next.js App Router
     onUpdate: ({ editor }) => {
       onChange(editor.getHTML())
     },

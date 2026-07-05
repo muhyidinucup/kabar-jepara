@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { TipTapEditor } from '@/components/tiptap-editor'
@@ -40,6 +40,30 @@ export default function TulisBeritaPage() {
   const supabase = createClient()
 
   const slug = generateSlug(title)
+
+  // ✅ Auto-save draft ke sessionStorage setiap kali form berubah
+  useEffect(() => {
+    const draft = { title, content, excerpt, imageUrl, categoryId }
+    sessionStorage.setItem('article-draft', JSON.stringify(draft))
+  }, [title, content, excerpt, imageUrl, categoryId])
+
+  // ✅ Load draft saat komponen pertama kali mount
+  useEffect(() => {
+    const saved = sessionStorage.getItem('article-draft')
+    if (saved && !title && !content) {
+      try {
+        const draft = JSON.parse(saved)
+        setTitle(draft.title || '')
+        setContent(draft.content || '')
+        setExcerpt(draft.excerpt || '')
+        setImageUrl(draft.imageUrl || '')
+        setCategoryId(draft.categoryId || '')
+      } catch {
+        // ignore corrupt data
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Fetch categories on mount
   useState(() => {
@@ -84,6 +108,9 @@ export default function TulisBeritaPage() {
       const result = await createArticle(formData)
 
       if (result.success) {
+        // ✅ Hapus draft setelah berhasil disimpan
+        sessionStorage.removeItem('article-draft')
+
         toast.success(
           status === 'published'
             ? 'Berita berhasil dipublish!'
@@ -95,6 +122,34 @@ export default function TulisBeritaPage() {
         toast.error(result.error || 'Gagal menyimpan berita')
       }
     })
+  }
+
+  // ✅ Preview functionality
+  const handlePreview = () => {
+    if (!title.trim() || !content.trim()) {
+      toast.error('Isi judul dan konten terlebih dahulu untuk preview')
+      return
+    }
+
+    const selectedCategory = categories.find(c => c.id.toString() === categoryId)
+
+    const previewData = {
+      title,
+      content,
+      excerpt,
+      image_url: imageUrl,
+      published_at: new Date().toISOString(),
+      categories: selectedCategory ? {
+        name: selectedCategory.name,
+        slug: selectedCategory.slug,
+      } : null,
+    }
+
+    // Simpan ke sessionStorage supaya halaman preview bisa baca
+    sessionStorage.setItem('preview-article', JSON.stringify(previewData))
+
+    // Buka preview di tab baru
+    window.open('/preview-berita', '_blank')
   }
 
   if (loading) {
@@ -203,10 +258,7 @@ export default function TulisBeritaPage() {
           <Button
             variant="outline"
             disabled={!title || !content}
-            onClick={() => {
-              // Preview logic nanti
-              toast.info('Fitur preview akan segera hadir')
-            }}
+            onClick={handlePreview}
           >
             <Eye className="mr-2 h-4 w-4" />
             Preview

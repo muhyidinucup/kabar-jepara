@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { PublicHeader } from '@/components/public/header'
 import { PublicFooter } from '@/components/public/footer'
-import { SearchForm } from '@/components/public/search-form' // ← Import dari file baru
+import { SearchForm } from '@/components/public/search-form'
 import Link from 'next/link'
 import { formatDate } from '@/lib/utils'
 import { Calendar, Search } from 'lucide-react'
@@ -107,7 +107,7 @@ export default async function SearchPage({
               {articlesData.length > 0 ? (
                 <>
                   Ditemukan <strong>{articlesData.length}</strong> hasil untuk{' '}
-                  <strong className="text-blue-600">"{query}"</strong>
+                  <strong className="text-blue-600">&quot;{query}&quot;</strong>
                   {categorySlug && (
                     <>
                       {' '}dalam kategori{' '}
@@ -119,7 +119,7 @@ export default async function SearchPage({
                 </>
               ) : (
                 <>
-                  Tidak ada hasil untuk <strong className="text-blue-600">"{query}"</strong>
+                  Tidak ada hasil untuk <strong className="text-blue-600">&quot;{query}&quot;</strong>
                   {categorySlug && (
                     <>
                       {' '}dalam kategori{' '}
@@ -207,10 +207,13 @@ function ArticleCard({ article, query }: { article: Article; query: string }) {
           )}
           
           <div className="flex items-center gap-3 text-xs text-gray-500">
-            <span className="flex items-center gap-1">
-              <Calendar className="w-3 h-3" />
-              {formatDate(article.published_at)}
-            </span>
+            {/* FIX: Conditional rendering untuk published_at */}
+            {article.published_at && (
+              <span className="flex items-center gap-1">
+                <Calendar className="w-3 h-3" />
+                {formatDate(article.published_at)}
+              </span>
+            )}
           </div>
         </div>
       </article>

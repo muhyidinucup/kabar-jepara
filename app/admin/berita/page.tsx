@@ -112,7 +112,7 @@ export default async function DaftarBeritaPage({
       </div>
 
       {/* Article List */}
-      <ArticleList articles={articles || []} />
+      <ArticleList articles={(articles || []) as any} />
     </div>
   )
 }

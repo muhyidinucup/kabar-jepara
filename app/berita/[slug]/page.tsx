@@ -122,10 +122,13 @@ export default async function BeritaDetailPage({
             </h1>
 
             <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
-              <span className="flex items-center gap-1">
-                <Calendar className="w-4 h-4" />
-                {formatDate(articleData.published_at)}
-              </span>
+              {/* FIX: Tambah conditional rendering untuk published_at */}
+              {articleData.published_at && (
+                <span className="flex items-center gap-1">
+                  <Calendar className="w-4 h-4" />
+                  {formatDate(articleData.published_at)}
+                </span>
+              )}
               
               {articleData.categories && (
                 <span className="flex items-center gap-1">
@@ -181,9 +184,11 @@ export default async function BeritaDetailPage({
                       <h3 className="font-semibold text-gray-900 line-clamp-2 group-hover:text-blue-600 transition">
                         {rel.title}
                       </h3>
-                      <p className="text-xs text-gray-500 mt-2">
-                        {formatDate(rel.published_at)}
-                      </p>
+                      {rel.published_at && (
+                        <p className="text-xs text-gray-500 mt-2">
+                          {formatDate(rel.published_at)}
+                        </p>
+                      )}
                     </div>
                   </article>
                 </Link>

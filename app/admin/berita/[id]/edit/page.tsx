@@ -73,7 +73,7 @@ export default function EditBeritaPage({
         return
       }
 
-      const article = result.data as ArticleData
+      const article = result.data as unknown as ArticleData
       
       setId(article.id)
       setTitle(article.title)

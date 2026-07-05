@@ -53,7 +53,7 @@ export default async function HomePage() {
       <PublicHeader />
 
       <main className="max-w-7xl mx-auto px-4 py-8">
-        {/* Hero: Berita Utama - Layout Liputan6 (Foto di atas, judul di bawah) */}
+        {/* Hero: Berita Utama */}
         {latestArticle && (
           <Link href={`/berita/${latestArticle.slug}`} className="block mb-12">
             <div className="rounded-2xl overflow-hidden bg-white shadow-lg hover:shadow-xl transition group">
@@ -68,7 +68,7 @@ export default async function HomePage() {
                 </div>
               )}
               
-              {/* JUDUL DI BAWAH (tanpa overlay) */}
+              {/* JUDUL DI BAWAH */}
               <div className="p-6">
                 {latestArticle.categories && (
                   <span className="inline-block px-3 py-1 text-xs font-semibold bg-blue-600 text-white rounded-full mb-3">
@@ -79,10 +79,13 @@ export default async function HomePage() {
                   {latestArticle.title}
                 </h2>
                 <div className="flex items-center gap-4 text-sm text-gray-500">
-                  <span className="flex items-center gap-1">
-                    <Calendar className="w-4 h-4" />
-                    {formatDate(latestArticle.published_at)}
-                  </span>
+                  {/* FIX: Tambah conditional rendering untuk published_at */}
+                  {latestArticle.published_at && (
+                    <span className="flex items-center gap-1">
+                      <Calendar className="w-4 h-4" />
+                      {formatDate(latestArticle.published_at)}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -152,10 +155,13 @@ function ArticleCard({ article }: { article: Article }) {
           )}
           
           <div className="flex items-center gap-3 text-xs text-gray-500">
-            <span className="flex items-center gap-1">
-              <Calendar className="w-3 h-3" />
-              {formatDate(article.published_at)}
-            </span>
+            {/* FIX: Tambah conditional rendering untuk published_at */}
+            {article.published_at && (
+              <span className="flex items-center gap-1">
+                <Calendar className="w-3 h-3" />
+                {formatDate(article.published_at)}
+              </span>
+            )}
           </div>
         </div>
       </article>

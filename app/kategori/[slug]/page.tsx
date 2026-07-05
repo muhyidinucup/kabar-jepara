@@ -4,7 +4,7 @@ import { PublicFooter } from '@/components/public/footer'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { formatDate } from '@/lib/utils'
-import { Calendar, ArrowRight, Tag } from 'lucide-react'
+import { Calendar, Tag } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
 
@@ -129,7 +129,7 @@ export default async function KategoriPage({
             {articlesData.length === 12 && (
               <div className="text-center">
                 <p className="text-gray-600 mb-4">
-                  Menampilkan 12 berita terbaru dari {articlesData.length}+ berita
+                  Menampilkan 12 berita terbaru
                 </p>
               </div>
             )}
@@ -174,10 +174,13 @@ function ArticleCard({ article }: { article: Article }) {
           )}
           
           <div className="flex items-center gap-3 text-xs text-gray-500">
-            <span className="flex items-center gap-1">
-              <Calendar className="w-3 h-3" />
-              {formatDate(article.published_at)}
-            </span>
+            {/* FIX: Tambah conditional rendering untuk published_at */}
+            {article.published_at && (
+              <span className="flex items-center gap-1">
+                <Calendar className="w-3 h-3" />
+                {formatDate(article.published_at)}
+              </span>
+            )}
           </div>
         </div>
       </article>

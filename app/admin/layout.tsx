@@ -15,26 +15,10 @@ import {
 } from 'lucide-react'
 
 const menuItems = [
-  {
-    title: 'Dashboard',
-    href: '/admin',
-    icon: LayoutDashboard,
-  },
-  {
-    title: 'Tulis Berita',
-    href: '/admin/berita/baru',
-    icon: PlusCircle,
-  },
-  {
-    title: 'Daftar Berita',
-    href: '/admin/berita',
-    icon: FileText,
-  },
-  {
-    title: 'Kategori',
-    href: '/admin/kategori',
-    icon: Tag,
-  },
+  { title: 'Dashboard', href: '/admin', icon: LayoutDashboard },
+  { title: 'Tulis Berita', href: '/admin/berita/baru', icon: PlusCircle },
+  { title: 'Daftar Berita', href: '/admin/berita', icon: FileText },
+  { title: 'Kategori', href: '/admin/kategori', icon: Tag },
 ]
 
 export default function AdminLayout({
@@ -42,6 +26,7 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode
 }) {
+  // ✅ SEMUA HOOKS DI ATAS (tidak boleh ada conditional return sebelum ini)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [userEmail, setUserEmail] = useState('')
   const router = useRouter()
@@ -62,6 +47,13 @@ export default function AdminLayout({
     await supabase.auth.signOut()
     router.push('/admin/login')
     router.refresh()
+  }
+
+  // ✅ FIX: Conditional rendering SETELAH semua hooks
+  const isLoginPage = pathname === '/admin/login'
+
+  if (isLoginPage) {
+    return <>{children}</>
   }
 
   return (

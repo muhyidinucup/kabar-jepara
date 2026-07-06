@@ -97,11 +97,11 @@ export default function KontakPage() {
             </div>
           </div>
 
-          {/* Form Kontak (Static Display) */}
+          {/* ✅ FIX: Form Kontak - Ganti <form> jadi <div>, hapus onSubmit */}
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
             <h2 className="text-xl font-bold text-gray-900 mb-6">Kirim Pesan</h2>
             
-            <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
+            <div className="space-y-4">
               <div>
                 <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
                   Nama Lengkap
@@ -156,17 +156,18 @@ export default function KontakPage() {
               </div>
 
               <button
-                type="submit"
-                className="w-full bg-blue-600 text-white font-medium py-3 rounded-lg hover:bg-blue-700 transition flex items-center justify-center gap-2"
+                type="button"
+                disabled
+                className="w-full bg-blue-600 text-white font-medium py-3 rounded-lg opacity-60 cursor-not-allowed flex items-center justify-center gap-2"
               >
                 <Send className="w-4 h-4" />
-                Kirim Pesan
+                Kirim Pesan (Demo)
               </button>
 
               <p className="text-xs text-gray-500 text-center">
                 ⚠️ Formulir ini adalah tampilan demo. Untuk mengirim pesan nyata, silakan hubungi kami via email atau WhatsApp.
               </p>
-            </form>
+            </div>
           </div>
         </div>
       </main>

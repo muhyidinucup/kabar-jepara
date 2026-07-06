@@ -164,11 +164,11 @@ export function MobileMenu({ categories }: { categories: Category[] }) {
             </p>
           </div>
 
-          {/* Tentang Kami */}
+          {/* ✅ FIX: Tentang Kami - href disesuaikan ke /tentang-kami */}
           <Link
-            href="/tentang"
+            href="/tentang-kami"
             onClick={() => setIsOpen(false)}
-            className={menuItemClass('/tentang')}
+            className={menuItemClass('/tentang-kami')}
           >
             <Info className="w-5 h-5" />
             <span>Tentang Kami</span>

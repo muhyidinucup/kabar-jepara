@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { TipTapEditor } from '@/components/tiptap-editor'
 import { ImageUpload } from '@/components/image-upload'
+import { SeoChecklist } from '@/components/admin/seo-checklist'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -112,7 +113,7 @@ export default function TulisBeritaPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Fetch categories on mount
+  // ✅ Fetch categories on mount (BUKAN fetch article)
   useEffect(() => {
     const fetchCategories = async () => {
       const { data } = await supabase.from('categories').select('*').order('name')
@@ -197,7 +198,10 @@ export default function TulisBeritaPage() {
       } : null,
     }
 
+    // Simpan ke sessionStorage supaya halaman preview bisa baca
     sessionStorage.setItem('preview-article', JSON.stringify(previewData))
+
+    // Buka preview di tab baru
     window.open('/preview-berita', '_blank')
   }
 
@@ -210,155 +214,171 @@ export default function TulisBeritaPage() {
   }
 
   return (
-    <div className="max-w-5xl">
+    <div className="max-w-7xl">
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Tulis Berita Baru</h1>
         <p className="text-gray-600 mt-1">Buat artikel baru untuk Kabar Jepara</p>
       </div>
 
-      {/* Form */}
-      <div className="space-y-6">
-        {/* Judul + Slug Preview ✅ UPDATED */}
-        <div className="space-y-2">
-          <Label htmlFor="title">Judul Berita</Label>
-          <Input
-            id="title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Contoh: Festival Tenun Ikat Jepara 2026 Pecahkan Rekor"
-            disabled={isPending}
-          />
-          {/* Slug Preview dengan validasi real-time */}
-          {title.trim() && (
-            <div className="space-y-1">
-              <div className="flex items-center gap-2 text-xs">
-                <LinkIcon className="w-3 h-3 text-gray-400" />
-                {slugChecking ? (
-                  <span className="text-gray-400 flex items-center gap-1">
-                    <Loader2 className="w-3 h-3 animate-spin" />
-                    Mengecek slug...
-                  </span>
-                ) : (
-                  <code className={`bg-gray-100 px-1.5 py-0.5 rounded ${slugWasModified ? 'text-orange-600 font-semibold' : 'text-gray-600'}`}>
-                    /berita/{slugPreview || '...'}
-                  </code>
+      {/* ✅ Layout 2 Kolom: Form + SEO Checklist */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Form (2/3 lebar) */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Judul + Slug Preview */}
+          <div className="space-y-2">
+            <Label htmlFor="title">Judul Berita</Label>
+            <Input
+              id="title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Contoh: Festival Tenun Ikat Jepara 2026 Pecahkan Rekor"
+              disabled={isPending}
+            />
+            {/* Slug Preview dengan validasi real-time */}
+            {title.trim() && (
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 text-xs">
+                  <LinkIcon className="w-3 h-3 text-gray-400" />
+                  {slugChecking ? (
+                    <span className="text-gray-400 flex items-center gap-1">
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      Mengecek slug...
+                    </span>
+                  ) : (
+                    <code className={`bg-gray-100 px-1.5 py-0.5 rounded ${slugWasModified ? 'text-orange-600 font-semibold' : 'text-gray-600'}`}>
+                      /berita/{slugPreview || '...'}
+                    </code>
+                  )}
+                </div>
+                {slugMessage && !slugChecking && (
+                  <p className={`text-xs flex items-start gap-1 ${slugWasModified ? 'text-orange-600' : 'text-green-600'}`}>
+                    {slugWasModified ? (
+                      <AlertCircle className="w-3 h-3 mt-0.5 shrink-0" />
+                    ) : (
+                      <CheckCircle className="w-3 h-3 mt-0.5 shrink-0" />
+                    )}
+                    {slugMessage}
+                  </p>
                 )}
               </div>
-              {slugMessage && !slugChecking && (
-                <p className={`text-xs flex items-start gap-1 ${slugWasModified ? 'text-orange-600' : 'text-green-600'}`}>
-                  {slugWasModified ? (
-                    <AlertCircle className="w-3 h-3 mt-0.5 shrink-0" />
-                  ) : (
-                    <CheckCircle className="w-3 h-3 mt-0.5 shrink-0" />
-                  )}
-                  {slugMessage}
-                </p>
-              )}
+            )}
+          </div>
+
+          {/* Kategori */}
+          <div className="space-y-2">
+            <Label htmlFor="category">Kategori</Label>
+            <Select value={categoryId} onValueChange={setCategoryId} disabled={isPending}>
+              <SelectTrigger>
+                <SelectValue placeholder="Pilih kategori" />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map((cat) => (
+                  <SelectItem key={cat.id} value={cat.id.toString()}>
+                    {cat.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Gambar Utama */}
+          <div className="space-y-2">
+            <Label>Gambar Utama</Label>
+            <ImageUpload
+              value={imageUrl}
+              onChange={setImageUrl}
+              onUpload={handleImageUpload}
+            />
+          </div>
+
+          {/* Excerpt + Character Counter */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="excerpt">Ringkasan (Excerpt)</Label>
+              <span className={`text-xs font-medium flex items-center gap-1 ${excerptStatus.color}`}>
+                <excerptStatus.icon className="w-3 h-3" />
+                {excerpt.length} / 160 karakter
+              </span>
             </div>
-          )}
-        </div>
-
-        {/* Kategori */}
-        <div className="space-y-2">
-          <Label htmlFor="category">Kategori</Label>
-          <Select value={categoryId} onValueChange={setCategoryId} disabled={isPending}>
-            <SelectTrigger>
-              <SelectValue placeholder="Pilih kategori" />
-            </SelectTrigger>
-            <SelectContent>
-              {categories.map((cat) => (
-                <SelectItem key={cat.id} value={cat.id.toString()}>
-                  {cat.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Gambar Utama */}
-        <div className="space-y-2">
-          <Label>Gambar Utama</Label>
-          <ImageUpload
-            value={imageUrl}
-            onChange={setImageUrl}
-            onUpload={handleImageUpload}
-          />
-        </div>
-
-        {/* Excerpt + Character Counter */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="excerpt">Ringkasan (Excerpt)</Label>
-            <span className={`text-xs font-medium flex items-center gap-1 ${excerptStatus.color}`}>
-              <excerptStatus.icon className="w-3 h-3" />
-              {excerpt.length} / 160 karakter
-            </span>
+            <Textarea
+              id="excerpt"
+              value={excerpt}
+              onChange={(e) => setExcerpt(e.target.value)}
+              placeholder="Ringkasan singkat 1-2 kalimat untuk tampil di card berita..."
+              rows={3}
+              disabled={isPending}
+              className="resize-none"
+            />
+            <div className={`text-xs flex items-start gap-1.5 ${excerptStatus.color}`}>
+              <excerptStatus.icon className="w-3 h-3 mt-0.5 shrink-0" />
+              <span>{excerptStatus.msg}</span>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Digunakan untuk preview di card berita, meta description SEO, dan Open Graph tags.
+            </p>
           </div>
-          <Textarea
-            id="excerpt"
-            value={excerpt}
-            onChange={(e) => setExcerpt(e.target.value)}
-            placeholder="Ringkasan singkat 1-2 kalimat untuk tampil di card berita..."
-            rows={3}
-            disabled={isPending}
-            className="resize-none"
-          />
-          <div className={`text-xs flex items-start gap-1.5 ${excerptStatus.color}`}>
-            <excerptStatus.icon className="w-3 h-3 mt-0.5 shrink-0" />
-            <span>{excerptStatus.msg}</span>
+
+          {/* Content Editor */}
+          <div className="space-y-2">
+            <Label>Isi Berita</Label>
+            <TipTapEditor
+              content={content}
+              onChange={setContent}
+              onImageUpload={handleImageUpload}
+            />
           </div>
-          <p className="text-xs text-gray-500 mt-1">
-            Digunakan untuk preview di card berita, meta description SEO, dan Open Graph tags.
-          </p>
+
+          {/* Action Buttons */}
+          <div className="flex items-center gap-3 pt-4 border-t">
+            <Button
+              variant="outline"
+              onClick={() => handleSubmit('draft')}
+              disabled={isPending}
+            >
+              {isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="mr-2 h-4 w-4" />
+              )}
+              Simpan Draft
+            </Button>
+
+            <Button
+              variant="outline"
+              disabled={!title || !content}
+              onClick={handlePreview}
+            >
+              <Eye className="mr-2 h-4 w-4" />
+              Preview
+            </Button>
+
+            <Button
+              onClick={() => handleSubmit('published')}
+              disabled={isPending || !title || !content}
+              className="ml-auto"
+            >
+              {isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Rocket className="mr-2 h-4 w-4" />
+              )}
+              Publish
+            </Button>
+          </div>
         </div>
 
-        {/* Content Editor */}
-        <div className="space-y-2">
-          <Label>Isi Berita</Label>
-          <TipTapEditor
-            content={content}
-            onChange={setContent}
-            onImageUpload={handleImageUpload}
-          />
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex items-center gap-3 pt-4 border-t">
-          <Button
-            variant="outline"
-            onClick={() => handleSubmit('draft')}
-            disabled={isPending}
-          >
-            {isPending ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Save className="mr-2 h-4 w-4" />
-            )}
-            Simpan Draft
-          </Button>
-
-          <Button
-            variant="outline"
-            disabled={!title || !content}
-            onClick={handlePreview}
-          >
-            <Eye className="mr-2 h-4 w-4" />
-            Preview
-          </Button>
-
-          <Button
-            onClick={() => handleSubmit('published')}
-            disabled={isPending || !title || !content}
-            className="ml-auto"
-          >
-            {isPending ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Rocket className="mr-2 h-4 w-4" />
-            )}
-            Publish
-          </Button>
+        {/* ✅ SEO Checklist Sidebar (1/3 lebar, sticky) */}
+        <div className="lg:col-span-1">
+          <div className="sticky top-24">
+            <SeoChecklist
+              title={title}
+              excerpt={excerpt}
+              imageUrl={imageUrl}
+              categoryId={categoryId}
+              content={content}
+            />
+          </div>
         </div>
       </div>
     </div>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition, useEffect } from 'react'
+import { useState, useTransition, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { TipTapEditor } from '@/components/tiptap-editor'
@@ -16,10 +16,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Loader2, Save, Eye, Rocket, AlertCircle, CheckCircle, Info } from 'lucide-react'
-import { createArticle, uploadImage } from '../actions'
+import { Loader2, Save, Eye, Rocket, AlertCircle, CheckCircle, Info, Link as LinkIcon } from 'lucide-react'
+import { createArticle, uploadImage, checkSlugAvailability } from '../actions'
 import { toast } from 'sonner'
-import { generateSlug } from '@/lib/utils'
 
 type Category = {
   id: number
@@ -39,7 +38,11 @@ export default function TulisBeritaPage() {
   const router = useRouter()
   const supabase = createClient()
 
-  const slug = generateSlug(title)
+  // ✅ Slug validation state
+  const [slugPreview, setSlugPreview] = useState('')
+  const [slugMessage, setSlugMessage] = useState('')
+  const [slugWasModified, setSlugWasModified] = useState(false)
+  const [slugChecking, setSlugChecking] = useState(false)
 
   // ✅ Helper untuk status excerpt
   const getExcerptStatus = (text: string) => {
@@ -51,6 +54,39 @@ export default function TulisBeritaPage() {
   }
 
   const excerptStatus = getExcerptStatus(excerpt)
+
+  // ✅ Debounced slug check (500ms setelah user berhenti mengetik)
+  const checkSlug = useCallback(async (titleText: string) => {
+    if (!titleText.trim()) {
+      setSlugPreview('')
+      setSlugMessage('')
+      setSlugWasModified(false)
+      return
+    }
+
+    setSlugChecking(true)
+    try {
+      const result = await checkSlugAvailability(titleText)
+      setSlugPreview(result.slug || '')
+      setSlugMessage(result.message || '')
+      setSlugWasModified(result.wasModified || false)
+    } catch {
+      setSlugPreview('')
+      setSlugMessage('Gagal mengecek slug')
+      setSlugWasModified(false)
+    } finally {
+      setSlugChecking(false)
+    }
+  }, [])
+
+  // ✅ Trigger slug check dengan debounce
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      checkSlug(title)
+    }, 500)
+
+    return () => clearTimeout(timer)
+  }, [title, checkSlug])
 
   // ✅ Auto-save draft ke sessionStorage setiap kali form berubah
   useEffect(() => {
@@ -122,6 +158,11 @@ export default function TulisBeritaPage() {
         // ✅ Hapus draft setelah berhasil disimpan
         sessionStorage.removeItem('article-draft')
 
+        // ✅ Tampilkan info kalau slug auto-dimodifikasi
+        if (result.slug && result.slug !== slugPreview) {
+          toast.info(`Slug disesuaikan menjadi: ${result.slug}`)
+        }
+
         toast.success(
           status === 'published'
             ? 'Berita berhasil dipublish!'
@@ -156,16 +197,13 @@ export default function TulisBeritaPage() {
       } : null,
     }
 
-    // Simpan ke sessionStorage supaya halaman preview bisa baca
     sessionStorage.setItem('preview-article', JSON.stringify(previewData))
-
-    // Buka preview di tab baru
     window.open('/preview-berita', '_blank')
   }
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px">
+      <div className="flex items-center justify-center min-h-[400px]">
         <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
       </div>
     )
@@ -181,7 +219,7 @@ export default function TulisBeritaPage() {
 
       {/* Form */}
       <div className="space-y-6">
-        {/* Judul */}
+        {/* Judul + Slug Preview ✅ UPDATED */}
         <div className="space-y-2">
           <Label htmlFor="title">Judul Berita</Label>
           <Input
@@ -191,10 +229,33 @@ export default function TulisBeritaPage() {
             placeholder="Contoh: Festival Tenun Ikat Jepara 2026 Pecahkan Rekor"
             disabled={isPending}
           />
-          {slug && (
-            <p className="text-xs text-gray-500">
-              Slug: <code className="bg-gray-100 px-1.5 py-0.5 rounded">/berita/{slug}</code>
-            </p>
+          {/* Slug Preview dengan validasi real-time */}
+          {title.trim() && (
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-xs">
+                <LinkIcon className="w-3 h-3 text-gray-400" />
+                {slugChecking ? (
+                  <span className="text-gray-400 flex items-center gap-1">
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    Mengecek slug...
+                  </span>
+                ) : (
+                  <code className={`bg-gray-100 px-1.5 py-0.5 rounded ${slugWasModified ? 'text-orange-600 font-semibold' : 'text-gray-600'}`}>
+                    /berita/{slugPreview || '...'}
+                  </code>
+                )}
+              </div>
+              {slugMessage && !slugChecking && (
+                <p className={`text-xs flex items-start gap-1 ${slugWasModified ? 'text-orange-600' : 'text-green-600'}`}>
+                  {slugWasModified ? (
+                    <AlertCircle className="w-3 h-3 mt-0.5 shrink-0" />
+                  ) : (
+                    <CheckCircle className="w-3 h-3 mt-0.5 shrink-0" />
+                  )}
+                  {slugMessage}
+                </p>
+              )}
+            </div>
           )}
         </div>
 
@@ -225,7 +286,7 @@ export default function TulisBeritaPage() {
           />
         </div>
 
-        {/* Excerpt + Character Counter ✅ BARU */}
+        {/* Excerpt + Character Counter */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <Label htmlFor="excerpt">Ringkasan (Excerpt)</Label>

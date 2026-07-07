@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useTransition } from 'react'
+import { useState, useEffect, useTransition, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { TipTapEditor } from '@/components/tiptap-editor'
@@ -16,10 +16,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Loader2, Save, ArrowLeft, Rocket, AlertCircle, CheckCircle, Info } from 'lucide-react'
-import { getArticle, updateArticle, uploadImage } from '../../actions'
+import { Loader2, Save, ArrowLeft, Rocket, AlertCircle, CheckCircle, Info, Link as LinkIcon, Lock } from 'lucide-react'
+import { getArticle, updateArticle, uploadImage, checkSlugAvailability } from '../../actions'
 import { toast } from 'sonner'
-import { generateSlug } from '@/lib/utils'
 
 type Category = {
   id: number
@@ -51,15 +50,20 @@ export default function EditBeritaPage({
   const [imageUrl, setImageUrl] = useState('')
   const [categoryId, setCategoryId] = useState('')
   const [status, setStatus] = useState<'draft' | 'published'>('draft')
+  const [originalSlug, setOriginalSlug] = useState('')
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [isPending, startTransition] = useTransition()
   const router = useRouter()
   const supabase = createClient()
 
-  const slug = generateSlug(title)
+  // ✅ Slug validation state
+  const [slugPreview, setSlugPreview] = useState('')
+  const [slugMessage, setSlugMessage] = useState('')
+  const [slugWasModified, setSlugWasModified] = useState(false)
+  const [slugChecking, setSlugChecking] = useState(false)
 
-  // ✅ Helper untuk status excerpt (sama seperti halaman baru)
+  // ✅ Helper untuk status excerpt
   const getExcerptStatus = (text: string) => {
     const len = text.length
     if (len === 0) return { color: 'text-gray-400', icon: Info, msg: 'Belum diisi' }
@@ -70,14 +74,48 @@ export default function EditBeritaPage({
 
   const excerptStatus = getExcerptStatus(excerpt)
 
+  // ✅ Debounced slug check (hanya untuk draft)
+  const checkSlug = useCallback(async (titleText: string, articleId: number) => {
+    if (!titleText.trim()) {
+      setSlugPreview('')
+      setSlugMessage('')
+      setSlugWasModified(false)
+      return
+    }
+
+    setSlugChecking(true)
+    try {
+      const result = await checkSlugAvailability(titleText, articleId)
+      setSlugPreview(result.slug || '')
+      setSlugMessage(result.message || '')
+      setSlugWasModified(result.wasModified || false)
+    } catch {
+      setSlugPreview('')
+      setSlugMessage('Gagal mengecek slug')
+      setSlugWasModified(false)
+    } finally {
+      setSlugChecking(false)
+    }
+  }, [])
+
+  // ✅ Trigger slug check dengan debounce (hanya kalau masih draft)
+  useEffect(() => {
+    if (status === 'published' || !id) return
+
+    const timer = setTimeout(() => {
+      checkSlug(title, id)
+    }, 500)
+
+    return () => clearTimeout(timer)
+  }, [title, status, id, checkSlug])
+
   // Fetch article data on mount
   useEffect(() => {
     const fetchData = async () => {
       const { id: articleId } = await params
-      
-      // Fetch article
+
       const result = await getArticle(parseInt(articleId))
-      
+
       if (!result.success || !result.data) {
         toast.error('Berita tidak ditemukan')
         router.push('/admin/berita')
@@ -85,7 +123,7 @@ export default function EditBeritaPage({
       }
 
       const article = result.data as unknown as ArticleData
-      
+
       setId(article.id)
       setTitle(article.title)
       setContent(article.content)
@@ -93,11 +131,15 @@ export default function EditBeritaPage({
       setImageUrl(article.image_url || '')
       setCategoryId(article.category_id?.toString() || '')
       setStatus(article.status)
+      setOriginalSlug(article.slug)
+
+      // ✅ Set slug preview awal
+      setSlugPreview(article.slug)
 
       // Fetch categories
       const { data: cats } = await supabase.from('categories').select('*').order('name')
       setCategories(cats || [])
-      
+
       setLoading(false)
     }
 
@@ -163,6 +205,9 @@ export default function EditBeritaPage({
     )
   }
 
+  // ✅ Tentukan apakah slug terkunci
+  const isSlugLocked = status === 'published'
+
   return (
     <div className="max-w-5xl">
       {/* Header */}
@@ -198,7 +243,7 @@ export default function EditBeritaPage({
           )}
         </div>
 
-        {/* Judul */}
+        {/* Judul + Slug Preview ✅ UPDATED */}
         <div className="space-y-2">
           <Label htmlFor="title">Judul Berita</Label>
           <Input
@@ -208,11 +253,46 @@ export default function EditBeritaPage({
             placeholder="Contoh: Festival Tenun Ikat Jepara 2026 Pecahkan Rekor"
             disabled={isPending}
           />
-          {slug && (
-            <p className="text-xs text-gray-500">
-              Slug: <code className="bg-gray-100 px-1.5 py-0.5 rounded">/berita/{slug}</code>
-            </p>
-          )}
+
+          {/* Slug Preview */}
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 text-xs">
+              {isSlugLocked ? (
+                <>
+                  <Lock className="w-3 h-3 text-gray-400" />
+                  <code className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">
+                    /berita/{originalSlug}
+                  </code>
+                  <span className="text-gray-400">(terkunci — slug tidak berubah meskipun judul diedit)</span>
+                </>
+              ) : (
+                <>
+                  <LinkIcon className="w-3 h-3 text-gray-400" />
+                  {slugChecking ? (
+                    <span className="text-gray-400 flex items-center gap-1">
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      Mengecek slug...
+                    </span>
+                  ) : (
+                    <code className={`bg-gray-100 px-1.5 py-0.5 rounded ${slugWasModified ? 'text-orange-600 font-semibold' : 'text-gray-600'}`}>
+                      /berita/{slugPreview || '...'}
+                    </code>
+                  )}
+                </>
+              )}
+            </div>
+            {/* Pesan slug hanya untuk draft */}
+            {!isSlugLocked && slugMessage && !slugChecking && (
+              <p className={`text-xs flex items-start gap-1 ${slugWasModified ? 'text-orange-600' : 'text-green-600'}`}>
+                {slugWasModified ? (
+                  <AlertCircle className="w-3 h-3 mt-0.5 shrink-0" />
+                ) : (
+                  <CheckCircle className="w-3 h-3 mt-0.5 shrink-0" />
+                )}
+                {slugMessage}
+              </p>
+            )}
+          </div>
         </div>
 
         {/* Kategori */}
@@ -242,7 +322,7 @@ export default function EditBeritaPage({
           />
         </div>
 
-        {/* Excerpt + Character Counter ✅ BARU */}
+        {/* Excerpt + Character Counter */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <Label htmlFor="excerpt">Ringkasan (Excerpt)</Label>

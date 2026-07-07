@@ -3,13 +3,93 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
+/**
+ * Generate slug dari teks
+ * - Lowercase
+ * - Hapus karakter non-alfanumerik kecuali spasi dan hyphen
+ * - Ganti spasi dengan hyphen
+ * - Hapus hyphen berulang
+ * - Trim hyphen di awal/akhir
+ */
 function generateSlug(text: string): string {
   return text
     .toLowerCase()
     .replace(/[^a-z0-9\s-]/g, '')
     .replace(/\s+/g, '-')
     .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '') // ✅ Trim hyphen di awal/akhir
     .trim()
+}
+
+/**
+ * Cek ketersediaan slug + auto-suffix kalau duplikat
+ * Returns slug yang pasti unik
+ */
+async function getUniqueSlug(
+  supabase: any,
+  baseSlug: string,
+  excludeId?: number
+): Promise<string> {
+  let slug = baseSlug
+  let suffix = 1
+
+  while (true) {
+    let query = supabase
+      .from('articles')
+      .select('id')
+      .eq('slug', slug)
+      .limit(1)
+
+    if (excludeId) {
+      query = query.neq('id', excludeId)
+    }
+
+    const { data } = await query
+
+    if (!data || data.length === 0) {
+      return slug // ✅ Slug tersedia
+    }
+
+    // ❌ Slug sudah dipakai, coba dengan suffix
+    suffix++
+    slug = `${baseSlug}-${suffix}`
+
+    // Safety limit mencegah infinite loop
+    if (suffix > 100) {
+      throw new Error('Terlalu banyak slug duplikat. Silakan ubah judul secara manual.')
+    }
+  }
+}
+
+// ✅ CHECK SLUG AVAILABILITY (untuk validasi real-time di frontend)
+export async function checkSlugAvailability(title: string, excludeId?: number) {
+  const supabase = await createClient()
+
+  if (!title || !title.trim()) {
+    return { available: false, slug: '', message: 'Judul kosong' }
+  }
+
+  const baseSlug = generateSlug(title)
+
+  if (!baseSlug) {
+    return { available: false, slug: '', message: 'Judul tidak menghasilkan slug yang valid' }
+  }
+
+  try {
+    const uniqueSlug = await getUniqueSlug(supabase, baseSlug, excludeId)
+    const isModified = uniqueSlug !== baseSlug
+
+    return {
+      available: true,
+      slug: uniqueSlug,
+      message: isModified
+        ? `Slug disesuaikan menjadi "${uniqueSlug}" karena slug asli sudah terpakai`
+        : 'Slug tersedia',
+      wasModified: isModified,
+    }
+  } catch (error: any) {
+    return { available: false, slug: '', message: error.message }
+  }
 }
 
 // CREATE: Tambah berita baru
@@ -27,23 +107,19 @@ export async function createArticle(formData: FormData) {
     return { success: false, error: 'Judul dan konten wajib diisi' }
   }
 
-  const slug = generateSlug(title)
+  const baseSlug = generateSlug(title)
 
-  // Cek duplikat slug
-  const { data: existing } = await supabase
-    .from('articles')
-    .select('id')
-    .eq('slug', slug)
-    .single()
-
-  if (existing) {
-    return { success: false, error: 'Berita dengan judul serupa sudah ada' }
+  if (!baseSlug) {
+    return { success: false, error: 'Judul tidak menghasilkan slug yang valid. Gunakan huruf dan angka.' }
   }
+
+  // ✅ Auto-suffix kalau duplikat (bukan return error)
+  const slug = await getUniqueSlug(supabase, baseSlug)
 
   // Get current user
   const { data: { user } } = await supabase.auth.getUser()
 
-  const { error } = await supabase.from('articles').insert({
+  const insertData: any = {
     title: title.trim(),
     slug,
     content,
@@ -52,14 +128,22 @@ export async function createArticle(formData: FormData) {
     category_id: category_id ? parseInt(category_id) : null,
     author_id: user?.id || null,
     status,
-  })
+  }
+
+  // Set published_at langsung kalau status = published saat create
+  if (status === 'published') {
+    insertData.published_at = new Date().toISOString()
+  }
+
+  const { error } = await supabase.from('articles').insert(insertData)
 
   if (error) {
     return { success: false, error: error.message }
   }
 
   revalidatePath('/admin/berita')
-  return { success: true }
+  revalidatePath('/')
+  return { success: true, slug }
 }
 
 // UPLOAD: Upload gambar ke Supabase Storage
@@ -108,7 +192,7 @@ export async function deleteArticle(id: number) {
   if (article?.image_url) {
     const urlParts = article.image_url.split('/')
     const fileName = urlParts[urlParts.length - 1]
-    
+
     await supabase.storage
       .from('article-images')
       .remove([fileName])
@@ -126,6 +210,7 @@ export async function deleteArticle(id: number) {
 
   revalidatePath('/admin/berita')
   revalidatePath('/admin')
+  revalidatePath('/')
   return { success: true }
 }
 
@@ -176,30 +261,21 @@ export async function updateArticle(formData: FormData) {
     return { success: false, error: 'Data tidak lengkap' }
   }
 
-  const slug = generateSlug(title)
+  const articleId = parseInt(id)
 
-  // Cek duplikat slug (kecuali diri sendiri)
-  const { data: existing } = await supabase
-    .from('articles')
-    .select('id')
-    .eq('slug', slug)
-    .neq('id', id)
-    .single()
-
-  if (existing) {
-    return { success: false, error: 'Berita dengan judul serupa sudah ada' }
-  }
-
-  // Get current article untuk cek apakah status berubah dari draft ke published
+  // ✅ Ambil data artikel saat ini untuk cek status & slug lama
   const { data: currentArticle } = await supabase
     .from('articles')
-    .select('status, published_at')
-    .eq('id', id)
+    .select('status, slug, published_at')
+    .eq('id', articleId)
     .single()
+
+  if (!currentArticle) {
+    return { success: false, error: 'Berita tidak ditemukan' }
+  }
 
   const updateData: any = {
     title: title.trim(),
-    slug,
     content,
     excerpt: excerpt?.trim() || null,
     image_url: image_url || null,
@@ -207,11 +283,26 @@ export async function updateArticle(formData: FormData) {
     status,
   }
 
+  // ✅ LOCK SLUG SETELAH PUBLISH
+  // Kalau artikel sudah published, JANGAN ubah slug meskipun judul berubah
+  if (currentArticle.status === 'published') {
+    updateData.slug = currentArticle.slug // Pertahankan slug lama
+  } else {
+    // Artikel masih draft → boleh regenerate slug dengan auto-suffix
+    const baseSlug = generateSlug(title)
+
+    if (!baseSlug) {
+      return { success: false, error: 'Judul tidak menghasilkan slug yang valid.' }
+    }
+
+    updateData.slug = await getUniqueSlug(supabase, baseSlug, articleId)
+  }
+
   // Set published_at kalau status berubah dari draft ke published
   if (
-    status === 'published' && 
-    currentArticle?.status === 'draft' && 
-    !currentArticle?.published_at
+    status === 'published' &&
+    currentArticle.status === 'draft' &&
+    !currentArticle.published_at
   ) {
     updateData.published_at = new Date().toISOString()
   }
@@ -219,7 +310,7 @@ export async function updateArticle(formData: FormData) {
   const { error } = await supabase
     .from('articles')
     .update(updateData)
-    .eq('id', id)
+    .eq('id', articleId)
 
   if (error) {
     return { success: false, error: error.message }
@@ -227,5 +318,6 @@ export async function updateArticle(formData: FormData) {
 
   revalidatePath('/admin/berita')
   revalidatePath('/admin')
+  revalidatePath('/')
   return { success: true }
 }

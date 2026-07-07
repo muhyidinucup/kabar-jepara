@@ -3,7 +3,6 @@
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Image from '@tiptap/extension-image'
-import Link from '@tiptap/extension-link'
 import Placeholder from '@tiptap/extension-placeholder'
 import { useEffect } from 'react'
 import {
@@ -21,7 +20,6 @@ import {
   Redo,
   Code,
 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 
 interface TipTapEditorProps {
   content: string
@@ -32,25 +30,28 @@ interface TipTapEditorProps {
 export function TipTapEditor({ content, onChange, onImageUpload }: TipTapEditorProps) {
   const editor = useEditor({
     extensions: [
-      StarterKit,
+      // ✅ Konfigurasi Link MELALUI StarterKit, bukan import terpisah
+      StarterKit.configure({
+        link: {
+          openOnClick: false,
+          autolink: false,
+          HTMLAttributes: {
+            class: 'text-blue-600 underline hover:text-blue-800',
+            target: '_blank',
+            rel: 'noopener noreferrer',
+          },
+        },
+      }),
       Image.configure({
         inline: false,
         allowBase64: true,
-      }),
-      Link.configure({
-        openOnClick: false,
-        HTMLAttributes: {
-          class: 'text-blue-600 underline hover:text-blue-800',
-          target: '_blank',
-          rel: 'noopener noreferrer',
-        },
       }),
       Placeholder.configure({
         placeholder: 'Mulai menulis berita di sini...',
       }),
     ],
     content: content,
-    immediatelyRender: false, // ✅ FIX: Mencegah warning hydration mismatch di Next.js App Router
+    immediatelyRender: false,
     onUpdate: ({ editor }) => {
       onChange(editor.getHTML())
     },

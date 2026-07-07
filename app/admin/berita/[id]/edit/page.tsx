@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Loader2, Save, ArrowLeft, Rocket } from 'lucide-react'
+import { Loader2, Save, ArrowLeft, Rocket, AlertCircle, CheckCircle, Info } from 'lucide-react'
 import { getArticle, updateArticle, uploadImage } from '../../actions'
 import { toast } from 'sonner'
 import { generateSlug } from '@/lib/utils'
@@ -59,6 +59,17 @@ export default function EditBeritaPage({
 
   const slug = generateSlug(title)
 
+  // ✅ Helper untuk status excerpt (sama seperti halaman baru)
+  const getExcerptStatus = (text: string) => {
+    const len = text.length
+    if (len === 0) return { color: 'text-gray-400', icon: Info, msg: 'Belum diisi' }
+    if (len < 120) return { color: 'text-yellow-600', icon: AlertCircle, msg: 'Terlalu pendek (< 120 karakter)' }
+    if (len > 160) return { color: 'text-red-600', icon: AlertCircle, msg: 'Terlalu panjang (> 160 karakter)' }
+    return { color: 'text-green-600', icon: CheckCircle, msg: 'Optimal (120-160 karakter)' }
+  }
+
+  const excerptStatus = getExcerptStatus(excerpt)
+
   // Fetch article data on mount
   useEffect(() => {
     const fetchData = async () => {
@@ -91,7 +102,7 @@ export default function EditBeritaPage({
     }
 
     fetchData()
-  }, [params])
+  }, [params, supabase])
 
   const handleImageUpload = async (file: File): Promise<string> => {
     const formData = new FormData()
@@ -231,9 +242,15 @@ export default function EditBeritaPage({
           />
         </div>
 
-        {/* Excerpt */}
+        {/* Excerpt + Character Counter ✅ BARU */}
         <div className="space-y-2">
-          <Label htmlFor="excerpt">Ringkasan (Excerpt)</Label>
+          <div className="flex items-center justify-between">
+            <Label htmlFor="excerpt">Ringkasan (Excerpt)</Label>
+            <span className={`text-xs font-medium flex items-center gap-1 ${excerptStatus.color}`}>
+              <excerptStatus.icon className="w-3 h-3" />
+              {excerpt.length} / 160 karakter
+            </span>
+          </div>
           <Textarea
             id="excerpt"
             value={excerpt}
@@ -241,9 +258,14 @@ export default function EditBeritaPage({
             placeholder="Ringkasan singkat 1-2 kalimat untuk tampil di card berita..."
             rows={3}
             disabled={isPending}
+            className="resize-none"
           />
-          <p className="text-xs text-gray-500">
-            Digunakan untuk preview di card berita dan SEO
+          <div className={`text-xs flex items-start gap-1.5 ${excerptStatus.color}`}>
+            <excerptStatus.icon className="w-3 h-3 mt-0.5 shrink-0" />
+            <span>{excerptStatus.msg}</span>
+          </div>
+          <p className="text-xs text-gray-500 mt-1">
+            Digunakan untuk preview di card berita, meta description SEO, dan Open Graph tags.
           </p>
         </div>
 

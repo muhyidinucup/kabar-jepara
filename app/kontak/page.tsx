@@ -1,11 +1,14 @@
 import { PublicHeader } from '@/components/public/header'
 import { PublicFooter } from '@/components/public/footer'
+import { generateSeo } from '@/lib/seo'
 import { Mail, Phone, MapPin, Clock, Send } from 'lucide-react'
 
-export const metadata = {
-  title: 'Hubungi Kami - Kabar Jepara',
-  description: 'Sampaikan pertanyaan, saran, atau informasi berita kepada tim Kabar Jepara',
-}
+// ✅ DYNAMIC METADATA
+export const metadata = generateSeo({
+  title: 'Hubungi Kami',
+  description: 'Sampaikan pertanyaan, saran, atau informasi berita kepada tim Kabar Jepara. Email, telepon, dan alamat redaksi.',
+  path: '/kontak',
+})
 
 export default function KontakPage() {
   return (
@@ -97,7 +100,7 @@ export default function KontakPage() {
             </div>
           </div>
 
-          {/* ✅ FIX: Form Kontak - Ganti <form> jadi <div>, hapus onSubmit */}
+          {/* Form Kontak (Static Display) */}
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
             <h2 className="text-xl font-bold text-gray-900 mb-6">Kirim Pesan</h2>
             

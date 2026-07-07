@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { PublicHeader } from '@/components/public/header'
 import { PublicFooter } from '@/components/public/footer'
+import { generateSeo } from '@/lib/seo'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { formatDate } from '@/lib/utils'
@@ -26,6 +27,28 @@ type Article = {
     name: string
     slug: string
   } | null
+}
+
+// ✅ DYNAMIC METADATA
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params
+  const supabase = await createClient()
+
+  const { data: category } = await supabase
+    .from('categories')
+    .select('name, description')
+    .eq('slug', slug)
+    .single()
+
+  if (!category) {
+    return { title: 'Kategori Tidak Ditemukan | Kabar Jepara' }
+  }
+
+  return generateSeo({
+    title: `Berita ${category.name}`,
+    description: category.description || `Kumpulan berita ${category.name} terbaru dan terkini di Kabupaten Jepara`,
+    path: `/kategori/${slug}`,
+  })
 }
 
 export default async function KategoriPage({
@@ -174,7 +197,6 @@ function ArticleCard({ article }: { article: Article }) {
           )}
           
           <div className="flex items-center gap-3 text-xs text-gray-500">
-            {/* FIX: Tambah conditional rendering untuk published_at */}
             {article.published_at && (
               <span className="flex items-center gap-1">
                 <Calendar className="w-3 h-3" />

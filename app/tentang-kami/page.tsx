@@ -1,11 +1,14 @@
 import { PublicHeader } from '@/components/public/header'
 import { PublicFooter } from '@/components/public/footer'
+import { generateSeo } from '@/lib/seo'
 import { Newspaper, Users, Target, Award } from 'lucide-react'
 
-export const metadata = {
-  title: 'Tentang Kami - Kabar Jepara',
-  description: 'Mengenal lebih dekat portal berita lokal Kabupaten Jepara',
-}
+// ✅ DYNAMIC METADATA
+export const metadata = generateSeo({
+  title: 'Tentang Kami',
+  description: 'Mengenal lebih dekat portal berita lokal Kabupaten Jepara. Visi, misi, dan tim redaksi Kabar Jepara.',
+  path: '/tentang-kami',
+})
 
 export default function TentangKamiPage() {
   return (

@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { PublicHeader } from '@/components/public/header'
 import { PublicFooter } from '@/components/public/footer'
 import { ShareButton } from '@/components/public/share-button'
+import { generateSeo } from '@/lib/seo'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { formatDate } from '@/lib/utils'
@@ -23,6 +24,7 @@ type Article = {
   excerpt: string | null
   image_url: string | null
   published_at: string | null
+  updated_at: string | null
   categories: Category | null
 }
 
@@ -33,6 +35,34 @@ type RelatedArticle = {
   image_url: string | null
   published_at: string | null
   categories: { name: string } | null
+}
+
+// ✅ DYNAMIC METADATA
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params
+  const supabase = await createClient()
+
+  const { data: article } = await supabase
+    .from('articles')
+    .select('title, excerpt, image_url, published_at, updated_at')
+    .eq('slug', slug)
+    .eq('status', 'published')
+    .single()
+
+  if (!article) {
+    return { title: 'Berita Tidak Ditemukan | Kabar Jepara' }
+  }
+
+  return generateSeo({
+    title: article.title,
+    description: article.excerpt || 'Baca berita terbaru dari Kabar Jepara',
+    path: `/berita/${slug}`,
+    image: article.image_url,
+    type: 'article',
+    publishedTime: article.published_at || undefined,
+    modifiedTime: article.updated_at || undefined,
+    authors: ['Redaksi Kabar Jepara'],
+  })
 }
 
 export default async function BeritaDetailPage({
@@ -54,6 +84,7 @@ export default async function BeritaDetailPage({
       excerpt,
       image_url,
       published_at,
+      updated_at,
       categories (
         id,
         name,
@@ -90,8 +121,45 @@ export default async function BeritaDetailPage({
 
   const related = (relatedArticles || []) as unknown as RelatedArticle[]
 
+  // ✅ JSON-LD SCHEMA NewsArticle
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'NewsArticle',
+    headline: articleData.title,
+    description: articleData.excerpt || '',
+    image: articleData.image_url ? [articleData.image_url] : [],
+    datePublished: articleData.published_at || new Date().toISOString(),
+    dateModified: articleData.updated_at || articleData.published_at || new Date().toISOString(),
+    author: [{
+      '@type': 'Organization',
+      name: 'Redaksi Kabar Jepara',
+      url: 'https://kabarjepara.web.id',
+    }],
+    publisher: {
+      '@type': 'Organization',
+      name: 'Kabar Jepara',
+      logo: {
+        '@type': 'ImageObject',
+        url: 'https://kabarjepara.web.id/logo.png',
+      },
+    },
+    mainEntityOfPage: {
+      '@type': 'WebPage',
+      '@id': `https://kabarjepara.web.id/berita/${slug}`,
+    },
+    ...(articleData.categories && {
+      articleSection: articleData.categories.name,
+    }),
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* ✅ Inject JSON-LD Schema */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+
       <PublicHeader />
 
       <main className="max-w-4xl mx-auto px-4 py-8">
@@ -122,7 +190,6 @@ export default async function BeritaDetailPage({
             </h1>
 
             <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
-              {/* FIX: Tambah conditional rendering untuk published_at */}
               {articleData.published_at && (
                 <span className="flex items-center gap-1">
                   <Calendar className="w-4 h-4" />
@@ -152,7 +219,7 @@ export default async function BeritaDetailPage({
             </div>
           )}
 
-          {/* Content - Langsung paragraf pertama (lead), TANPA excerpt */}
+          {/* Content */}
           <div
             className="p-8 prose prose-lg max-w-none"
             dangerouslySetInnerHTML={{ __html: articleData.content }}

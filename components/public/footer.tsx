@@ -5,7 +5,7 @@ export function PublicFooter() {
     <footer className="bg-gray-900 text-gray-300 mt-16">
       <div className="max-w-7xl mx-auto px-4 py-12">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {/* About */}
+          {/* Brand */}
           <div>
             <div className="flex items-center gap-3 mb-4">
               <span className="text-3xl">📰</span>
@@ -15,12 +15,11 @@ export function PublicFooter() {
               </div>
             </div>
             <p className="text-sm text-gray-400">
-              Menyajikan informasi terkini seputar Jepara dan sekitarnya. 
-              Berita terpercaya untuk warga Jepara.
+              Menyajikan informasi terkini seputar Jepara dan sekitarnya. Berita terpercaya untuk warga Jepara.
             </p>
           </div>
 
-          {/* Quick Links */}
+          {/* Navigasi */}
           <div>
             <h4 className="text-white font-semibold mb-4">Navigasi</h4>
             <ul className="space-y-2 text-sm">
@@ -30,7 +29,8 @@ export function PublicFooter() {
                 </Link>
               </li>
               <li>
-                <Link href="/tentang" className="hover:text-white transition">
+                {/* ✅ FIX: /tentang → /tentang-kami */}
+                <Link href="/tentang-kami" className="hover:text-white transition">
                   Tentang Kami
                 </Link>
               </li>
@@ -47,7 +47,7 @@ export function PublicFooter() {
             </ul>
           </div>
 
-          {/* Contact */}
+          {/* Kontak */}
           <div>
             <h4 className="text-white font-semibold mb-4">Kontak</h4>
             <ul className="space-y-2 text-sm text-gray-400">
@@ -58,6 +58,7 @@ export function PublicFooter() {
           </div>
         </div>
 
+        {/* Copyright */}
         <div className="border-t border-gray-800 mt-8 pt-8 text-center text-sm text-gray-500">
           <p>© 2026 Kabar Jepara. All rights reserved.</p>
         </div>

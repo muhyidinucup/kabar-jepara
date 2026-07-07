@@ -9,6 +9,8 @@ import { Calendar, Tag } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://kabarjepara.web.id'
+
 type Category = {
   id: number
   name: string
@@ -95,12 +97,38 @@ export default async function KategoriPage({
 
   const articlesData = (articles || []) as unknown as Article[]
 
+  // ✅ JSON-LD SCHEMA BreadcrumbList
+  const breadcrumbLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      {
+        '@type': 'ListItem',
+        position: 1,
+        name: 'Beranda',
+        item: SITE_URL,
+      },
+      {
+        '@type': 'ListItem',
+        position: 2,
+        name: categoryData.name,
+        item: `${SITE_URL}/kategori/${categoryData.slug}`,
+      },
+    ],
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* ✅ Inject JSON-LD BreadcrumbList */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }}
+      />
+
       <PublicHeader />
 
       <main className="max-w-7xl mx-auto px-4 py-8">
-        {/* Breadcrumb */}
+        {/* Breadcrumb Visual */}
         <div className="mb-6">
           <nav className="flex items-center gap-2 text-sm text-gray-600">
             <Link href="/" className="hover:text-blue-600 transition">

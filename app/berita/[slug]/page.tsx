@@ -10,6 +10,8 @@ import { Calendar, Tag, ArrowLeft } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://kabarjepara.web.id'
+
 type Category = {
   id: number
   name: string
@@ -133,31 +135,67 @@ export default async function BeritaDetailPage({
     author: [{
       '@type': 'Organization',
       name: 'Redaksi Kabar Jepara',
-      url: 'https://kabarjepara.web.id',
+      url: SITE_URL,
     }],
     publisher: {
       '@type': 'Organization',
       name: 'Kabar Jepara',
       logo: {
         '@type': 'ImageObject',
-        url: 'https://kabarjepara.web.id/logo.png',
+        url: `${SITE_URL}/logo.png`,
       },
     },
     mainEntityOfPage: {
       '@type': 'WebPage',
-      '@id': `https://kabarjepara.web.id/berita/${slug}`,
+      '@id': `${SITE_URL}/berita/${slug}`,
     },
     ...(articleData.categories && {
       articleSection: articleData.categories.name,
     }),
   }
 
+  // ✅ JSON-LD SCHEMA BreadcrumbList (BARU)
+  const breadcrumbLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      {
+        '@type': 'ListItem',
+        position: 1,
+        name: 'Beranda',
+        item: SITE_URL,
+      },
+      ...(articleData.categories
+        ? [
+            {
+              '@type': 'ListItem',
+              position: 2,
+              name: articleData.categories.name,
+              item: `${SITE_URL}/kategori/${articleData.categories.slug}`,
+            },
+          ]
+        : []),
+      {
+        '@type': 'ListItem',
+        position: articleData.categories ? 3 : 2,
+        name: articleData.title,
+        item: `${SITE_URL}/berita/${slug}`,
+      },
+    ],
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* ✅ Inject JSON-LD Schema */}
+      {/* ✅ Inject JSON-LD NewsArticle */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+
+      {/* ✅ Inject JSON-LD BreadcrumbList (BARU) */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }}
       />
 
       <PublicHeader />

@@ -16,6 +16,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Kabar Jepara",
   description: "Portal informasi publik Jepara dan sekitarnya",
+  verification: {
+    google: "h1WkcHcxL9NDzn5vtrTLHWAAZ-Ty7KT80Sota_E-dTk",
+  },
 };
 
 export default function RootLayout({
@@ -28,7 +31,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {/* ✅ Organization Schema - Global (Muncul di SEMUA halaman) */}
+        {/* ✅ Organization Schema - Global */}
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
